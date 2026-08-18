@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>🏎️ Đua Xe Hóa Học - Ôn Tập 20 Nguyên Tố Đầu</title>
+<style>
+  :root{
+    --road-w: min(62vw, 460px);
+    --accent: #ff9800;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    overflow:hidden; overscroll-behavior:none; touch-action:none;
+    font-family:'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background:#4fc3f7;
+  }
+  #game{
+    position:fixed; inset:0; width:100vw; height:100vh; overflow:hidden;
+  }
+
+  /* ---------- SKY ---------- */
+  #sky{
+    position:absolute; inset:0;
+    background:linear-gradient(#4fb3e8 0%, #8fd9f8 35%, #cdf1c3 100%);
+  }
+  #sun{
+    position:absolute; top:4%; right:8%; width:14vw; height:14vw; max-width:90px; max-height:90px;
+    background:radial-gradient(circle, #fff59d 0%, #ffd54f 60%, #ffb300 100%);
+    border-radius:50%; box-shadow:0 0 40px 10px rgba(255,213,79,0.7);
+    animation: spin 20s linear infinite;
+  }
+  @keyframes spin{ from{transform:rotate(0)} to{transform:rotate(360deg)} }
+  .cloud{
+    position:absolute; background:#fff; border-radius:50px; opacity:0.9;
+    box-shadow: 0 0 0 0 #fff;
+  }
+  .cloud:before, .cloud:after{
+    content:''; position:absolute; background:#fff; border-radius:50%;
+  }
+  #cloud1{ top:8%; left:-20%; width:90px; height:30px; animation: drift 26s linear infinite; }
+  #cloud1:before{ width:50px; height:50px; top:-25px; left:10px; }
+  #cloud1:after{ width:40px; height:40px; top:-18px; left:45px; }
+  #cloud2{ top:18%; left:-30%; width:60px; height:22px; animation: drift 34s linear infinite 4s; }
+  #cloud2:before{ width:35px; height:35px; top:-16px; left:8px; }
+  #cloud2:after{ width:28px; height:28px; top:-12px; left:30px; }
+  @keyframes drift{ from{transform:translateX(0)} to{transform:translateX(140vw)} }
+
+  /* ---------- SCENERY (grass either side) ---------- */
+  .scenery{
+    position:absolute; top:0; bottom:0; width:calc((100vw - var(--road-w))/2);
+    overflow:hidden;
+    background:linear-gradient(#8bc34a, #689f38);
+  }
+  #scenery-left{ left:0; }
+  #scenery-right{ right:0; }
+  .scenery-track{
+    position:absolute; left:0; width:100%; height:200%; top:0;
+  }
+  .deco{ position:absolute; font-size:1.8rem; line-height:1; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.2)); }
+
+  /* ---------- ROAD ---------- */
+  #road{
+    position:absolute; top:0; bottom:0; left:50%; width:var(--road-w); transform:translateX(-50%);
+    background:#5b5b5b;
+    box-shadow: 0 0 0 6px #444 inset;
+    overflow:hidden;
+  }
+  #lane{
+    position:absolute; left:50%; top:0; width:10px; height:220%; transform:translateX(-50%);
+    background-image: repeating-linear-gradient(to bottom, #ffe082 0 40px, transparent 40px 80px);
+  }
+  #lane.l2{ left:25%; }
+  #lane.l3{ left:75%; }
+
+  /* ---------- CAR ---------- */
+  #car{
+    position:absolute; bottom:9%; left:50%; width:56px; height:88px; margin-left:-28px;
+    transition: left 0.12s linear;
+    z-index:5;
+  }
+  #car .body{
+    position:absolute; inset:0; background:linear-gradient(#e53935,#b71c1c);
+    border-radius:16px 16px 10px 10px; box-shadow:0 4px 8px rgba(0,0,0,0.4);
+  }
+  #car .windshield{
+    position:absolute; top:14px; left:8px; right:8px; height:28px;
+    background:#90caf9; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-size:20px; overflow:hidden;
+  }
+  #car .wheel{
+    position:absolute; width:12px; height:20px; background:#212121; border-radius:3px;
+  }
+  #car .wl1{ left:-4px; top:8px; } #car .wr1{ right:-4px; top:8px; }
+  #car .wl2{ left:-4px; bottom:8px; } #car .wr2{ right:-4px; bottom:8px; }
+  #car .light{
+    position:absolute; bottom:2px; width:8px; height:5px; background:#fff9c4; border-radius:2px;
+  }
+  #car .lt1{ left:6px; } #car .lt2{ right:6px; }
+  .exhaust{
+    position:absolute; width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.7);
+    opacity:0; pointer-events:none;
+  }
+
+  /* ---------- OBSTACLE (question sign) ---------- */
+  #obstacle{
+    position:absolute; left:50%; top:-140px; width:70px; height:70px; margin-left:-35px;
+    display:none; align-items:center; justify-content:center; flex-direction:column;
+    z-index:4;
+  }
+  #obstacle .sign{
+    width:70px; height:70px; background:#fdd835; border:5px solid #212121; border-radius:10px;
+    display:flex; align-items:center; justify-content:center; font-size:38px; font-weight:900; color:#c62828;
+    box-shadow:0 4px 10px rgba(0,0,0,0.35);
+    transform:rotate(3deg);
+  }
+
+  /* ---------- HUD ---------- */
+  #hud{
+    position:absolute; top:0; left:0; right:0; z-index:20;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:calc(8px + env(safe-area-inset-top)) 10px 0 10px;
+    pointer-events:none;
+  }
+  .pill{
+    background:rgba(0,0,0,0.55); color:#fff; padding:6px 12px; border-radius:20px;
+    font-size:14px; font-weight:600; pointer-events:auto; backdrop-filter:blur(2px);
+  }
+  #mute-btn{
+    background:rgba(0,0,0,0.55); color:#fff; border:none; border-radius:50%;
+    width:36px; height:36px; font-size:16px; pointer-events:auto; cursor:pointer;
+  }
+
+  /* ---------- CONTROLS ---------- */
+  #controls{
+    position:absolute; bottom:0; left:0; right:0; z-index:20;
+    display:flex; justify-content:space-between; align-items:flex-end;
+    padding:0 14px calc(14px + env(safe-area-inset-bottom)) 14px;
+    pointer-events:none;
+  }
+  .ctrl-btn{
+    pointer-events:auto;
+    width:64px; height:64px; border-radius:50%; border:none;
+    background:rgba(255,255,255,0.85); color:#333; font-size:26px; font-weight:900;
+    box-shadow:0 4px 10px rgba(0,0,0,0.3); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    touch-action:none;
+  }
+  .ctrl-btn:active{ background:var(--accent); color:#fff; transform:scale(0.94); }
+
+  /* ---------- OVERLAYS ---------- */
+  .overlay{
+    position:absolute; inset:0; z-index:30;
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    background:rgba(0,0,0,0.55); padding:20px; text-align:center;
+  }
+  .hidden{ display:none !important; }
+  .card{
+    background:#fff; border-radius:18px; padding:24px 20px; width:min(92vw, 420px);
+    max-height:88vh; overflow-y:auto;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  }
+  .card h1{ margin:0 0 6px 0; font-size:1.4rem; color:#c62828; }
+  .card p{ color:#555; font-size:0.95rem; line-height:1.4; }
+  .big-btn{
+    margin-top:16px; padding:14px 26px; font-size:1.05rem; font-weight:700; color:#fff;
+    background:linear-gradient(#66bb6a,#388e3c); border:none; border-radius:12px; cursor:pointer;
+    box-shadow:0 4px 10px rgba(0,0,0,0.25); width:100%;
+  }
+  .big-btn:active{ transform:scale(0.97); }
+
+  #question-modal .card{ padding:20px 16px; }
+  #q-counter{ font-size:0.85rem; color:#888; margin-bottom:6px; font-weight:600; }
+  #q-text{ font-size:1.25rem; font-weight:800; color:#222; margin:6px 0 16px 0; }
+  #q-symbol-badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:78px; height:78px; border-radius:14px; background:linear-gradient(#42a5f5,#1e88e5);
+    color:#fff; font-size:2.1rem; font-weight:900; margin-bottom:10px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.25);
+  }
+  #answers{
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  }
+  .ans-btn{
+    padding:14px 8px; font-size:1rem; font-weight:700; border-radius:12px; border:2px solid #ddd;
+    background:#f7f7f7; cursor:pointer; min-height:56px; color:#333;
+    transition: all 0.15s;
+  }
+  .ans-btn:active{ transform:scale(0.96); }
+  .ans-btn.correct{ background:#c8e6c9; border-color:#43a047; color:#1b5e20; }
+  .ans-btn.wrong{ background:#ffcdd2; border-color:#e53935; color:#b71c1c; }
+
+  #feedback-banner{
+    position:absolute; top:18%; left:50%; transform:translateX(-50%); z-index:35;
+    font-size:1.6rem; font-weight:900; padding:10px 26px; border-radius:14px; color:#fff;
+    opacity:0; pointer-events:none; transition:opacity 0.2s, transform 0.2s;
+  }
+  #feedback-banner.show{ opacity:1; transform:translateX(-50%) translateY(10px); }
+  #feedback-banner.ok{ background:#43a047; }
+  #feedback-banner.no{ background:#e53935; }
+
+  #end-screen .stat{
+    display:flex; justify-content:space-between; padding:8px 4px; border-bottom:1px solid #eee;
+    font-size:0.95rem;
+  }
+  #end-screen .stat b{ color:#c62828; }
+
+  /* Portrait phone tuning */
+  @media (max-width:480px){
+    :root{ --road-w: 66vw; }
+    .ctrl-btn{ width:58px; height:58px; font-size:22px; }
+    #q-text{ font-size:1.1rem; }
+    .card h1{ font-size:1.2rem; }
+  }
+  @media (max-height:560px){
+    .card{ padding:14px 12px; }
+    #q-symbol-badge{ width:60px; height:60px; font-size:1.6rem; }
+  }
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="sky">
+    <div id="sun"></div>
+    <div class="cloud" id="cloud1"></div>
+    <div class="cloud" id="cloud2"></div>
+  </div>
+
+  <div id="scenery-left" class="scenery"><div class="scenery-track" id="track-left"></div></div>
+  <div id="scenery-right" class="scenery"><div class="scenery-track" id="track-right"></div></div>
+
+  <div id="road">
+    <div id="lane" class="l2"></div>
+    <div id="lane" class="l3"></div>
+    <div id="obstacle"><div class="sign">?</div></div>
+    <div id="car">
+      <div class="body"></div>
+      <div class="windshield">🧑</div>
+      <div class="wheel wl1"></div><div class="wheel wr1"></div>
+      <div class="wheel wl2"></div><div class="wheel wr2"></div>
+      <div class="light lt1"></div><div class="light lt2"></div>
+    </div>
+  </div>
+
+  <div id="hud">
+    <div class="pill" id="score-pill">⭐ Điểm: 0</div>
+    <button id="mute-btn">🔊</button>
+    <div class="pill" id="progress-pill">Câu 0/20</div>
+  </div>
+
+  <div id="controls">
+    <button class="ctrl-btn" id="left-btn">◀</button>
+    <button class="ctrl-btn" id="right-btn">▶</button>
+  </div>
+
+  <div id="feedback-banner"></div>
+
+  <!-- START SCREEN -->
+  <div class="overlay" id="start-screen">
+    <div class="card">
+      <h1>🏁 Đua Xe Hóa Học</h1>
+      <p>Lái xe băng qua các trạm kiểm tra! Mỗi trạm là một câu hỏi về <b>tên & kí hiệu hóa học</b> của 20 nguyên tố đầu tiên.</p>
+      <p>✅ Trả lời đúng: <b>+10 điểm</b>, được đi tiếp.<br>❌ Trả lời sai: không bị trừ điểm, vẫn đi tiếp!</p>
+      <button class="big-btn" id="start-btn">🚗 Khởi động xe!</button>
+    </div>
+  </div>
+
+  <!-- QUESTION MODAL -->
+  <div class="overlay hidden" id="question-modal">
+    <div class="card">
+      <div id="q-counter">Trạm kiểm tra 1/20</div>
+      <div id="q-symbol-badge"></div>
+      <div id="q-text"></div>
+      <div id="answers"></div>
+    </div>
+  </div>
+
+  <!-- END SCREEN -->
+  <div class="overlay hidden" id="end-screen">
+    <div class="card">
+      <h1>🏆 Về đích!</h1>
+      <div class="stat"><span>Số câu trả lời đúng</span><b id="end-correct">0/20</b></div>
+      <div class="stat"><span>Tổng điểm</span><b id="end-score">0</b></div>
+      <div class="stat"><span>Xếp loại</span><b id="end-rank">-</b></div>
+      <button class="big-btn" id="restart-btn">🔁 Chơi lại</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= DATA: 20 NGUYÊN TỐ ĐẦU TIÊN ================= */
+  const ELEMENTS = [
+    {sym:"H",  name:"Hiđro"},
+    {sym:"He", name:"Heli"},
+    {sym:"Li", name:"Liti"},
+    {sym:"Be", name:"Beri"},
+    {sym:"B",  name:"Bo"},
+    {sym:"C",  name:"Cacbon"},
+    {sym:"N",  name:"Nitơ"},
+    {sym:"O",  name:"Oxi"},
+    {sym:"F",  name:"Flo"},
+    {sym:"Ne", name:"Neon"},
+    {sym:"Na", name:"Natri"},
+    {sym:"Mg", name:"Magie"},
+    {sym:"Al", name:"Nhôm"},
+    {sym:"Si", name:"Silic"},
+    {sym:"P",  name:"Photpho"},
+    {sym:"S",  name:"Lưu huỳnh"},
+    {sym:"Cl", name:"Clo"},
+    {sym:"Ar", name:"Agon"},
+    {sym:"K",  name:"Kali"},
+    {sym:"Ca", name:"Canxi"}
+  ];
+
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  }
+
+  /* ================= AUDIO (Web Audio API, không cần file ngoài) ================= */
+  let audioCtx = null, masterGain = null, engineOsc = null, engineGain = null, muted = false;
+  let musicTimer = null;
+
+  function initAudio(){
+    if(audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.5;
+    masterGain.connect(audioCtx.destination);
+  }
+
+  function tone(freq, dur, type, vol, delay, glideTo){
+    if(!audioCtx || muted) return;
+    const t0 = audioCtx.currentTime + (delay||0);
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    if(glideTo) osc.frequency.linearRampToValueAtTime(glideTo, t0+dur);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(vol||0.2, t0+0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t0+dur);
+    osc.connect(g); g.connect(masterGain);
+    osc.start(t0); osc.stop(t0+dur+0.05);
+  }
+
+  function playEngineStart(){
+    if(!audioCtx || muted) return;
+    tone(60, 0.5, 'sawtooth', 0.25, 0, 40);
+    tone(140, 0.35, 'square', 0.12, 0.05, 90);
+  }
+
+  function startEngineLoop(){
+    if(!audioCtx || muted) return;
+    stopEngineLoop();
+    engineOsc = audioCtx.createOscillator();
+    engineGain = audioCtx.createGain();
+    engineOsc.type = 'sawtooth';
+    engineOsc.frequency.value = 55;
+    engineGain.gain.value = 0.06;
+    engineOsc.connect(engineGain); engineGain.connect(masterGain);
+    engineOsc.start();
+    // rung nhẹ động cơ
+    let f = 55, dir = 1;
+    engineOsc._lfo = setInterval(()=>{
+      f += dir*3; if(f>66||f<48) dir*=-1;
+      if(engineOsc) engineOsc.frequency.setTargetAtTime(f, audioCtx.currentTime, 0.05);
+    }, 90);
+  }
+  function setEngineIdle(idle){
+    if(!engineGain) return;
+    engineGain.gain.setTargetAtTime(idle? 0.025 : 0.06, audioCtx.currentTime, 0.2);
+  }
+  function stopEngineLoop(){
+    if(engineOsc){
+      clearInterval(engineOsc._lfo);
+      try{ engineOsc.stop(); }catch(e){}
+      engineOsc = null;
+    }
+  }
+
+  function playCorrect(){
+    tone(880, 0.15, 'triangle', 0.25, 0);
+    tone(1320, 0.22, 'triangle', 0.22, 0.12);
+  }
+  function playWrong(){
+    tone(220, 0.28, 'square', 0.2, 0);
+    tone(140, 0.32, 'square', 0.18, 0.1);
+  }
+  function playHorn(){
+    tone(300, 0.25, 'square', 0.15, 0);
+  }
+
+  const MELODY = [523,659,784,659,523,659,784,988,880,784,659,523];
+  let melodyIdx = 0;
+  function startMusic(){
+    stopMusic();
+    musicTimer = setInterval(()=>{
+      if(!muted){
+        tone(MELODY[melodyIdx % MELODY.length], 0.28, 'triangle', 0.06, 0);
+      }
+      melodyIdx++;
+    }, 340);
+  }
+  function stopMusic(){ if(musicTimer){ clearInterval(musicTimer); musicTimer=null; } }
+
+  document.getElementById('mute-btn').addEventListener('click', ()=>{
+    muted = !muted;
+    document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
+    if(masterGain) masterGain.gain.value = muted ? 0 : 0.5;
+  });
+
+  /* ================= SCENERY GENERATION ================= */
+  const DECOS = ['🌳','🌸','🌼','🌻','🍀','🌷','🌲','🌿'];
+  function buildTrack(el){
+    el.innerHTML = '';
+    const patternHeight = 900; // px, height of one repeating unit
+    for(let rep=0; rep<2; rep++){
+      for(let i=0;i<14;i++){
+        const d = document.createElement('div');
+        d.className='deco';
+        d.textContent = DECOS[Math.floor(Math.random()*DECOS.length)];
+        d.style.left = (5 + Math.random()*80) + '%';
+        d.style.top = (rep*patternHeight + Math.random()*patternHeight) + 'px';
+        d.style.fontSize = (1.3 + Math.random()*1.2) + 'rem';
+        el.appendChild(d);
+      }
+    }
+    el.dataset.patternHeight = patternHeight;
+  }
+  const trackLeft = document.getElementById('track-left');
+  const trackRight = document.getElementById('track-right');
+  buildTrack(trackLeft);
+  buildTrack(trackRight);
+
+  /* ================= GAME STATE ================= */
+  const car = document.getElementById('car');
+  const road = document.getElementById('road');
+  const obstacle = document.getElementById('obstacle');
+  const laneEls = document.querySelectorAll('#lane');
+  const scoreEl = document.getElementById('score-pill');
+  const progressEl = document.getElementById('progress-pill');
+  const feedbackEl = document.getElementById('feedback-banner');
+
+  let distance = 0;          // tổng quãng đường đã đi (px ảo)
+  let speed = 4.2;           // tốc độ cuộn nền
+  let carX = 0;               // vị trí ngang xe, -1..1 (theo road width)
+  let steerLeft = false, steerRight = false;
+  let state = 'idle';         // idle | driving | question | finished
+  let score = 0;
+  let correctCount = 0;
+  let quizOrder = [];
+  let quizIndex = 0;
+  let nextSpawnDistance = 260;
+  const SPAWN_GAP = 340;
+  const TOTAL_Q = ELEMENTS.length;
+  let obstacleTop = -140;
+  let obstacleActive = false;
+
+  function roadWidthPx(){ return road.clientWidth; }
+
+  function layoutCar(){
+    const halfRange = (roadWidthPx()/2) - 46;
+    const px = carX * halfRange;
+    car.style.left = 'calc(50% + ' + px + 'px)';
+    car.style.marginLeft = '-28px';
+  }
+
+  function updateHUD(){
+    scoreEl.textContent = '⭐ Điểm: ' + score;
+    progressEl.textContent = 'Câu ' + Math.min(quizIndex, TOTAL_Q) + '/' + TOTAL_Q;
+  }
+
+  function tick(){
+    requestAnimationFrame(tick);
+    if(state === 'driving'){
+      distance += speed;
+
+      // steering
+      if(steerLeft) carX = Math.max(-1, carX - 0.045);
+      if(steerRight) carX = Math.min(1, carX + 0.045);
+      if(!steerLeft && !steerRight) carX *= 0.9;
+      layoutCar();
+
+      // scroll scenery
+      const ph = parseFloat(trackLeft.dataset.patternHeight);
+      const offset = distance % ph;
+      trackLeft.style.transform = 'translateY(' + offset + 'px)';
+      trackRight.style.transform = 'translateY(' + offset + 'px)';
+
+      // scroll lane dashes
+      laneEls.forEach(l => { l.style.backgroundPositionY = (distance % 80) + 'px'; });
+
+      // parallax nhẹ theo hướng lái
+      const parallax = carX * 10;
+      trackLeft.style.marginLeft = (-parallax) + 'px';
+      trackRight.style.marginLeft = (-parallax) + 'px';
+
+      // obstacle movement
+      if(obstacleActive){
+        obstacleTop += speed;
+        obstacle.style.top = obstacleTop + 'px';
+        const triggerY = road.clientHeight * 0.62;
+        if(obstacleTop >= triggerY){
+          triggerQuestion();
+        }
+      } else if(distance >= nextSpawnDistance && quizIndex < TOTAL_Q){
+        spawnObstacle();
+      }
+
+      if(quizIndex >= TOTAL_Q && !obstacleActive){
+        finishGame();
+      }
+    }
+  }
+  requestAnimationFrame(tick);
+
+  function spawnObstacle(){
+    obstacleActive = true;
+    obstacleTop = -140;
+    obstacle.style.display = 'flex';
+    obstacle.style.top = obstacleTop + 'px';
+  }
+
+  function currentQuizItem(){
+    return quizOrder[quizIndex];
+  }
+
+  function buildQuestion(item){
+    const askSymbol = Math.random() < 0.5; // true: cho tên, hỏi kí hiệu | false: cho kí hiệu, hỏi tên
+    const others = ELEMENTS.filter(e => e.sym !== item.sym);
+    const distractors = shuffle(others).slice(0,3);
+    let options, correctVal, promptText, badgeText;
+    if(askSymbol){
+      promptText = 'Kí hiệu hóa học của "' + item.name + '" là gì?';
+      correctVal = item.sym;
+      options = shuffle([item.sym, ...distractors.map(d=>d.sym)]);
+      badgeText = item.name;
+    } else {
+      promptText = 'Kí hiệu "' + item.sym + '" là tên nguyên tố nào?';
+      correctVal = item.name;
+      options = shuffle([item.name, ...distractors.map(d=>d.name)]);
+      badgeText = item.sym;
+    }
+    return {promptText, correctVal, options, badgeText};
+  }
+
+  const qModal = document.getElementById('question-modal');
+  const qCounter = document.getElementById('q-counter');
+  const qText = document.getElementById('q-text');
+  const qBadge = document.getElementById('q-symbol-badge');
+  const answersWrap = document.getElementById('answers');
+
+  function triggerQuestion(){
+    state = 'question';
+    setEngineIdle(true);
+    const item = currentQuizItem();
+    const q = buildQuestion(item);
+    qCounter.textContent = 'Trạm kiểm tra ' + (quizIndex+1) + '/' + TOTAL_Q;
+    qText.textContent = q.promptText;
+    qBadge.textContent = q.badgeText;
+    answersWrap.innerHTML = '';
+    q.options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'ans-btn';
+      btn.textContent = opt;
+      btn.addEventListener('click', () => handleAnswer(opt, q.correctVal, btn));
+      answersWrap.appendChild(btn);
+    });
+    qModal.classList.remove('hidden');
+  }
+
+  function showFeedback(ok){
+    feedbackEl.textContent = ok ? '✅ Chính xác! +10' : '❌ Chưa đúng, đi tiếp thôi!';
+    feedbackEl.className = 'show ' + (ok ? 'ok':'no');
+    setTimeout(()=>{ feedbackEl.classList.remove('show'); }, 900);
+  }
+
+  function handleAnswer(chosen, correctVal, btnEl){
+    Array.from(answersWrap.children).forEach(b => b.disabled = true);
+    const ok = chosen === correctVal;
+    if(ok){
+      score += 10;
+      correctCount++;
+      btnEl.classList.add('correct');
+      playCorrect();
+    } else {
+      btnEl.classList.add('wrong');
+      Array.from(answersWrap.children).forEach(b => { if(b.textContent === correctVal) b.classList.add('correct'); });
+      playWrong();
+    }
+    updateHUD();
+    showFeedback(ok);
+
+    setTimeout(()=>{
+      qModal.classList.add('hidden');
+      obstacle.style.display = 'none';
+      obstacleActive = false;
+      quizIndex++;
+      nextSpawnDistance = distance + SPAWN_GAP;
+      updateHUD();
+      if(quizIndex >= TOTAL_Q){
+        finishGame();
+      } else {
+        state = 'driving';
+        setEngineIdle(false);
+      }
+    }, 850);
+  }
+
+  function finishGame(){
+    state = 'finished';
+    stopEngineLoop();
+    stopMusic();
+    document.getElementById('end-correct').textContent = correctCount + '/' + TOTAL_Q;
+    document.getElementById('end-score').textContent = score;
+    let rank = 'Cần cố gắng thêm 💪';
+    if(correctCount === TOTAL_Q) rank = 'Xuất sắc! Nhà Hóa học nhí 🏆';
+    else if(correctCount >= TOTAL_Q*0.8) rank = 'Rất giỏi! 🌟';
+    else if(correctCount >= TOTAL_Q*0.5) rank = 'Khá tốt 👍';
+    document.getElementById('end-rank').textContent = rank;
+    document.getElementById('end-screen').classList.remove('hidden');
+  }
+
+  function resetGame(){
+    distance = 0; carX = 0; score = 0; correctCount = 0; quizIndex = 0;
+    nextSpawnDistance = 260;
+    quizOrder = shuffle(ELEMENTS);
+    obstacle.style.display = 'none';
+    obstacleActive = false;
+    layoutCar();
+    updateHUD();
+  }
+
+  function startGame(){
+    initAudio();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    resetGame();
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('end-screen').classList.add('hidden');
+    playEngineStart();
+    setTimeout(()=>{
+      startEngineLoop();
+      startMusic();
+      state = 'driving';
+    }, 500);
+  }
+
+  document.getElementById('start-btn').addEventListener('click', startGame);
+  document.getElementById('restart-btn').addEventListener('click', startGame);
+
+  /* ================= ĐIỀU KHIỂN: CHẠM + CHUỘT + BÀN PHÍM ================= */
+  const leftBtn = document.getElementById('left-btn');
+  const rightBtn = document.getElementById('right-btn');
+
+  function bindHold(el, onDown, onUp){
+    el.addEventListener('pointerdown', e => { e.preventDefault(); onDown(); });
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointerleave', onUp);
+    el.addEventListener('pointercancel', onUp);
+  }
+  bindHold(leftBtn, ()=>{ steerLeft = true; playHornIfIdle(); }, ()=>{ steerLeft = false; });
+  bindHold(rightBtn, ()=>{ steerRight = true; playHornIfIdle(); }, ()=>{ steerRight = false; });
+
+  function playHornIfIdle(){ /* giữ chỗ cho hiệu ứng thêm nếu cần */ }
+
+  window.addEventListener('keydown', e=>{
+    if(e.key === 'ArrowLeft') steerLeft = true;
+    if(e.key === 'ArrowRight') steerRight = true;
+  });
+  window.addEventListener('keyup', e=>{
+    if(e.key === 'ArrowLeft') steerLeft = false;
+    if(e.key === 'ArrowRight') steerRight = false;
+  });
+
+  // Ngăn cuộn trang / zoom khi chạm trong game
+  document.getElementById('game').addEventListener('touchmove', e => e.preventDefault(), {passive:false});
+
+  window.addEventListener('resize', layoutCar);
+  layoutCar();
+  updateHUD();
+})();
+</script>
+</body>
+</html>
